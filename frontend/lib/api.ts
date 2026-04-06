@@ -30,18 +30,20 @@ api.interceptors.response.use(
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken })
-          const { token } = response.data.data
-          localStorage.setItem('token', token)
-          originalRequest.headers.Authorization = `Bearer ${token}`
-          return api(originalRequest)
-        } catch {
-          localStorage.removeItem('token')
-          localStorage.removeItem('refreshToken')
-          window.location.href = '/login'
+      if (typeof window !== 'undefined') {
+        const refreshToken = localStorage.getItem('refreshToken')
+        if (refreshToken) {
+          try {
+            const response = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken })
+            const { token } = response.data.data
+            localStorage.setItem('token', token)
+            originalRequest.headers.Authorization = `Bearer ${token}`
+            return api(originalRequest)
+          } catch {
+            localStorage.removeItem('token')
+            localStorage.removeItem('refreshToken')
+            window.location.href = '/login'
+          }
         }
       }
     }

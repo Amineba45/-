@@ -20,12 +20,12 @@ const generateRefreshToken = (id) => {
 const register = asyncHandler(async (req, res) => {
   const { email, password, firstName, lastName, phone } = req.body;
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: String(email) });
   if (existingUser) {
     return res.status(400).json({ success: false, message: 'Email already registered' });
   }
 
-  const user = await User.create({ email, password, firstName, lastName, phone });
+  const user = await User.create({ email: String(email), password, firstName, lastName, phone });
 
   const token = generateToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
@@ -56,7 +56,7 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email: String(email) }).select('+password');
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ success: false, message: 'Invalid email or password' });
   }

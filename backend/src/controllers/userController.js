@@ -1,10 +1,16 @@
 const User = require('../models/User');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { USER_ROLES } = require('../utils/constants');
 
 const getUsers = asyncHandler(async (req, res) => {
   const { role, page = 1, limit = 20 } = req.query;
   const query = {};
-  if (role) query.role = role;
+  if (role) {
+    if (!USER_ROLES.includes(String(role))) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+    query.role = String(role);
+  }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [users, total] = await Promise.all([
@@ -47,4 +53,8 @@ const updateProfile = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
-module.exports = { getUsers, getUser, updateUser, deleteUser, updateProfile };
+const getProfile = asyncHandler(async (req, res) => {
+  res.json({ success: true, data: req.user });
+});
+
+module.exports = { getUsers, getUser, updateUser, deleteUser, updateProfile, getProfile };

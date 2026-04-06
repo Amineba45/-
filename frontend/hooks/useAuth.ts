@@ -13,7 +13,12 @@ export function useAuth() {
     if (token && !isAuthenticated) {
       authApi.getMe()
         .then(response => {
-          dispatch(loginSuccess({ ...response.data.data, token }))
+          const userData = response.data.data
+          dispatch(loginSuccess({
+            token,
+            refreshToken: localStorage.getItem('refreshToken') || '',
+            user: userData
+          }))
         })
         .catch(() => {
           dispatch(logout())

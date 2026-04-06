@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Store = require('../models/Store');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { ORDER_STATUS } = require('../utils/constants');
 
 const getOrders = asyncHandler(async (req, res) => {
   const { storeId, status, page = 1, limit = 20 } = req.query;
@@ -13,8 +15,18 @@ const getOrders = asyncHandler(async (req, res) => {
     query.storeId = req.user.storeId;
   }
 
-  if (storeId && req.user.role === 'super_admin') query.storeId = storeId;
-  if (status) query.orderStatus = status;
+  if (storeId && req.user.role === 'super_admin') {
+    if (!mongoose.Types.ObjectId.isValid(String(storeId))) {
+      return res.status(400).json({ success: false, message: 'Invalid storeId' });
+    }
+    query.storeId = new mongoose.Types.ObjectId(String(storeId));
+  }
+  if (status) {
+    if (!ORDER_STATUS.includes(String(status))) {
+      return res.status(400).json({ success: false, message: 'Invalid order status' });
+    }
+    query.orderStatus = String(status);
+  }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [orders, total] = await Promise.all([
@@ -46,6 +58,10 @@ const getOrder = asyncHandler(async (req, res) => {
 const createOrder = asyncHandler(async (req, res) => {
   const { storeId, items, deliveryAddress, latitude, longitude, paymentMethod, notes } = req.body;
 
+  if (!mongoose.Types.ObjectId.isValid(String(storeId))) {
+    return res.status(400).json({ success: false, message: 'Invalid storeId' });
+  }
+
   const store = await Store.findById(storeId);
   if (!store || store.status !== 'active') {
     return res.status(400).json({ success: false, message: 'Store not available' });
@@ -55,6 +71,9 @@ const createOrder = asyncHandler(async (req, res) => {
   const orderItems = [];
 
   for (const item of items) {
+    if (!mongoose.Types.ObjectId.isValid(String(item.productId))) {
+      return res.status(400).json({ success: false, message: `Invalid productId: ${item.productId}` });
+    }
     const product = await Product.findById(item.productId);
     if (!product || !product.isActive) {
       return res.status(400).json({ success: false, message: `Product ${item.productId} not available` });
@@ -97,9 +116,12 @@ const createOrder = asyncHandler(async (req, res) => {
 
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderStatus } = req.body;
+  if (!ORDER_STATUS.includes(String(orderStatus))) {
+    return res.status(400).json({ success: false, message: 'Invalid order status' });
+  }
   const order = await Order.findByIdAndUpdate(
     req.params.id,
-    { orderStatus, ...(orderStatus === 'delivered' ? { actualDeliveryTime: new Date() } : {}) },
+    { orderStatus: String(orderStatus), ...(orderStatus === 'delivered' ? { actualDeliveryTime: new Date() } : {}) },
     { new: true }
   );
 

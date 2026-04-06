@@ -1,5 +1,6 @@
 const Store = require('../models/Store');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { STORE_STATUS } = require('../utils/constants');
 
 // @desc    Get all stores
 // @route   GET /api/v1/stores
@@ -7,23 +8,27 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const getStores = asyncHandler(async (req, res) => {
   const { lat, lng, radius = 10, status = 'active' } = req.query;
 
-  let query = { status };
+  if (!STORE_STATUS.includes(String(status))) {
+    return res.status(400).json({ success: false, message: 'Invalid store status' });
+  }
+
+  const query = { status: String(status) };
 
   const stores = await Store.find(query).populate('adminId', 'firstName lastName email');
 
-  let filteredStores = stores;
+  let filteredStores = stores.map(store => store.toObject());
   if (lat && lng) {
     const userLat = parseFloat(lat);
     const userLng = parseFloat(lng);
     const maxRadius = parseFloat(radius);
 
-    filteredStores = stores.filter(store => {
-      const distance = calculateDistance(userLat, userLng, store.latitude, store.longitude);
-      store._doc = { ...store._doc, distance: Math.round(distance * 10) / 10 };
-      return distance <= maxRadius;
-    });
-
-    filteredStores.sort((a, b) => (a._doc.distance || 0) - (b._doc.distance || 0));
+    filteredStores = filteredStores
+      .map(store => ({
+        ...store,
+        distance: Math.round(calculateDistance(userLat, userLng, store.latitude, store.longitude) * 10) / 10
+      }))
+      .filter(store => store.distance <= maxRadius)
+      .sort((a, b) => a.distance - b.distance);
   }
 
   res.json({ success: true, count: filteredStores.length, data: filteredStores });

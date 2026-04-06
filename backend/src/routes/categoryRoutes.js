@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -7,7 +8,12 @@ const { asyncHandler } = require('../middleware/errorHandler');
 router.get('/', asyncHandler(async (req, res) => {
   const { storeId } = req.query;
   const query = { isActive: true };
-  if (storeId) query.storeId = storeId;
+  if (storeId) {
+    if (!mongoose.Types.ObjectId.isValid(String(storeId))) {
+      return res.status(400).json({ success: false, message: 'Invalid storeId' });
+    }
+    query.storeId = new mongoose.Types.ObjectId(String(storeId));
+  }
   const categories = await Category.find(query).sort({ displayOrder: 1 });
   res.json({ success: true, count: categories.length, data: categories });
 }));

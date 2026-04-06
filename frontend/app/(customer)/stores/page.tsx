@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { storeApi } from '@/lib/api'
 import { MapPin, Clock, Truck } from 'lucide-react'
 import Link from 'next/link'
@@ -24,6 +24,23 @@ export default function StoresPage() {
   const [loading, setLoading] = useState(true)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
+  const fetchStores = useCallback(async (lat?: number, lng?: number) => {
+    try {
+      const params: Record<string, string | number> = {}
+      if (lat && lng) {
+        params.lat = lat
+        params.lng = lng
+        params.radius = 20
+      }
+      const response = await storeApi.getAll(params)
+      setStores(response.data.data)
+    } catch {
+      toast.error('Erreur lors du chargement des magasins')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -40,30 +57,13 @@ export default function StoresPage() {
     } else {
       fetchStores()
     }
-  }, [])
+  }, [fetchStores])
 
   useEffect(() => {
     if (userLocation) {
       fetchStores(userLocation.lat, userLocation.lng)
     }
-  }, [userLocation])
-
-  const fetchStores = async (lat?: number, lng?: number) => {
-    try {
-      const params: Record<string, string | number> = {}
-      if (lat && lng) {
-        params.lat = lat
-        params.lng = lng
-        params.radius = 20
-      }
-      const response = await storeApi.getAll(params)
-      setStores(response.data.data)
-    } catch {
-      toast.error('Erreur lors du chargement des magasins')
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [userLocation, fetchStores])
 
   if (loading) {
     return (
